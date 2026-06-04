@@ -12,12 +12,11 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  PermissionsBitField,
-  ChannelType
+  PermissionsBitField
 } = require("discord.js");
 
 const app = express();
-app.get("/", (req, res) => res.send("Gang Application Bot Online"));
+app.get("/", (req, res) => res.send("Dark Gang Application Bot Online"));
 app.listen(process.env.PORT || 3000);
 
 /* =========================
@@ -32,20 +31,23 @@ const CONFIG = {
   WELCOME_CHANNEL_ID: "1511832465818517714",
   NEWS_CHANNEL_ID: "1511907230944071800",
   LOG_CHANNEL_ID: "1511907497127186482",
-  INTERVIEW_CATEGORY_ID: "",
+
+  CONTROL_PANEL_CHANNEL_ID: "1511907230944071800",
+  INTERVIEW_SCHEDULE_CHANNEL_ID: "1511832476195094599",
 
   AUTO_ROLE_ID: "1511913983131516938",
-ACCEPTED_GANG_ROLE_ID: "1511914045555343370",
+  ACCEPTED_GANG_ROLE_ID: "1511914045555343370",
 
-STAFF_ROLE_IDS: [
-  "1511832439985541322",
-  "1511832441856200794",
-  "1511832439985541322"
-],
+  STAFF_ROLE_IDS: [
+    "1511832439985541322",
+    "1511832441856200794",
+    "1511832439985541322"
+  ],
+
   REVIEWER_ROLE_IDS: [
     "1511832439985541322",
     "1511832441856200794",
-    "1511832443399835894"  
+    "1511832443399835894"
   ],
 
   BROADCAST_ROLE_ID: "1511832446474256394",
@@ -58,12 +60,10 @@ STAFF_ROLE_IDS: [
   ERROR_COLOR: 0xff0000,
 
   APPLY_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&",
-  RECEIVED_IMAGE: "",
+  RECEIVED_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&",
   ACCEPT_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511911006626906252/518F623E-374B-4FCE-8AD3-D3C03B658DA0.png?ex=6a222c59&is=6a20dad9&hm=fb4872a5eb9a60e02a3af010c6430f0f273cf378c3b6cf460e1a827fe673774b&",
-  REJECT_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511911671105323048/6D903B7F-2DEC-4539-BE57-34053E9E205F.png?ex=6a222cf8&is=6a20db78&hm=2b31f3f466a986ad5a6b6e2b92d774f70459ecb8a6a909c034432003b44681a1&",
-  WELCOME_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&",
-
-  INTERVIEW_BUTTON_LABEL: "دخول المقابلة الصوتية 🎤"
+  REJECTED_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511911671105323048/6D903B7F-2DEC-4539-BE57-34053E9E205F.png?ex=6a222cf8&is=6a20db78&hm=2b31f3f466a986ad5a6b6e2b92d774f70459ecb8a6a909c034432003b44681a1&",
+  WELCOME_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&"
 };
 
 const QUESTIONS = [
@@ -95,11 +95,14 @@ const client = new Client({
 });
 
 const activeApplications = new Map();
-const pendingApplications = new Map();
-let applicationPanelSent = false;
 
 function line() {
   return "━━━━━━━━━━━━━━━━━━━━";
+}
+
+function addImage(embed, url) {
+  if (url && url.startsWith("http")) embed.setImage(url);
+  return embed;
 }
 
 function staffMentions() {
@@ -120,7 +123,7 @@ async function sendLog(guild, text) {
     embeds: [
       new EmbedBuilder()
         .setColor(CONFIG.MAIN_COLOR)
-        .setTitle("📌 System Log")
+        .setTitle("📌 سجل النظام")
         .setDescription(text)
         .setTimestamp()
     ]
@@ -128,7 +131,7 @@ async function sendLog(guild, text) {
 }
 
 function applyPanelEmbed() {
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(CONFIG.MAIN_COLOR)
     .setAuthor({ name: CONFIG.SYSTEM_NAME })
     .setTitle("التقديم على العصابة 📩")
@@ -136,19 +139,22 @@ function applyPanelEmbed() {
       [
         line(),
         "",
-        "أهلاً بك في نظام التقديم الرسمي",
+        `أهلاً بك في نظام التقديم الرسمي لعصابة **${CONFIG.SERVER_NAME}**`,
         "",
-        "📌 سيتم سؤالك عدة أسئلة",
-        "يرجى الإجابة بجدية",
+        "سيتم سؤالك عدة أسئلة مهمة.",
+        "جاوب بهدوء وبشكل محترم وجدي.",
         "",
-        "❌ إذا أردت إلغاء التقديم في أي وقت قم بكتابة:",
+        "لو حبيت تلغي التقديم في أي وقت اكتب:",
         "`cancel`",
+        "",
+        "نتمنى لك التوفيق ❤️",
         "",
         line()
       ].join("\n")
     )
-    .setImage(CONFIG.APPLY_IMAGE)
     .setFooter({ text: `${CONFIG.SERVER_NAME} • نظام التقديم` });
+
+  return addImage(embed, CONFIG.APPLY_IMAGE);
 }
 
 function applyButtonRow() {
@@ -160,33 +166,78 @@ function applyButtonRow() {
   );
 }
 
-function questionEmbed(step) {
+function controlPanelEmbed() {
   return new EmbedBuilder()
     .setColor(CONFIG.MAIN_COLOR)
-    .setTitle(`السؤال رقم ${step + 1}`)
-    .setDescription(QUESTIONS[step])
-    .setFooter({ text: "اكتب cancel لإلغاء التقديم" });
-}
-
-function receivedEmbed() {
-  return new EmbedBuilder()
-    .setColor(CONFIG.SUCCESS_COLOR)
-    .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("تم استلام تقديمك ✅")
+    .setTitle("لوحة تحكم البوت ⚙️")
     .setDescription(
       [
         line(),
         "",
-        "تم إرسال تقديمك للإدارة",
-        "وسيتم مراجعته قريباً",
+        "من هنا الإدارة تقدر تستخدم البوت بسهولة.",
         "",
-        "نتمنى لك التوفيق ❤️",
+        "📢 إرسال خبر في روم الأخبار",
+        "يرسل الخبر للروم المحدد في الكود.",
+        "",
+        "✉️ إرسال رسالة لروم معين",
+        "تكتب أيدي الروم والرسالة والبوت يرسلها.",
         "",
         line()
       ].join("\n")
     )
-    .setImage(CONFIG.RECEIVED_IMAGE)
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • نظام التقديم` });
+    .setFooter({ text: `${CONFIG.SERVER_NAME} • Control Panel` });
+}
+
+function controlButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("open_news_modal")
+      .setLabel("إرسال خبر 📢")
+      .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId("open_send_modal")
+      .setLabel("إرسال رسالة لروم ✉️")
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function questionEmbed(step) {
+  return new EmbedBuilder()
+    .setColor(CONFIG.MAIN_COLOR)
+    .setTitle(`السؤال رقم ${step + 1}`)
+    .setDescription(
+      [
+        QUESTIONS[step],
+        "",
+        "**اكتب cancel لإلغاء التقديم**"
+      ].join("\n")
+    );
+}
+
+function receivedEmbed() {
+  const embed = new EmbedBuilder()
+    .setColor(CONFIG.SUCCESS_COLOR)
+    .setAuthor({ name: CONFIG.SYSTEM_NAME })
+    .setTitle("تم استلام طلبك بنجاح ✅")
+    .setDescription(
+      [
+        line(),
+        "",
+        "تم إرسال تقديمك إلى إدارة العصابة.",
+        "طلبك الآن قيد المراجعة.",
+        "",
+        "يرجى الانتظار وعدم تكرار التقديم.",
+        "سيتم إبلاغك بالنتيجة في الخاص.",
+        "",
+        "نتمنى لك التوفيق والانضمام معنا قريباً ❤️",
+        "",
+        line()
+      ].join("\n")
+    )
+    .setFooter({ text: `${CONFIG.SERVER_NAME} • قيد المراجعة` });
+
+  return addImage(embed, CONFIG.RECEIVED_IMAGE);
 }
 
 function reviewEmbed(user, answers) {
@@ -195,8 +246,10 @@ function reviewEmbed(user, answers) {
     .setTitle("📥 تقديم عصابة جديد")
     .setDescription(
       [
-        `👤 المتقدم: ${user}`,
-        `🆔 ID: \`${user.id}\``,
+        `👤 **المتقدم:** ${user}`,
+        `🆔 **ID:** \`${user.id}\``,
+        "",
+        `📌 **الحالة:** قيد المراجعة`,
         line()
       ].join("\n")
     )
@@ -230,134 +283,168 @@ function reviewButtons(userId) {
   );
 }
 
-function acceptedEmbed() {
-  return new EmbedBuilder()
+function acceptedDmEmbed() {
+  const embed = new EmbedBuilder()
     .setColor(CONFIG.SUCCESS_COLOR)
     .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("تم قبول طلبك في السيرفر! 🎉")
+    .setTitle("تم قبول طلبك مبدئياً 🎉")
     .setDescription(
       [
         line(),
         "",
         "✅ تهانينا!",
         "",
-        `تم قبولك مبدئياً في **${CONFIG.SERVER_NAME}**`,
+        `تم قبولك مبدئياً في **${CONFIG.SERVER_NAME}**.`,
         "",
-        "أصبحت الآن مؤهلاً للدخول إلى المقابلة الصوتية",
+        "لكن لسه فاضل آخر مرحلة عشان يكون القبول رسمي.",
         "",
-        "يرجى الالتزام بالقوانين واحترام جميع اللاعبين",
+        `ادخل روم مواعيد المقابلة من هنا: <#${CONFIG.INTERVIEW_SCHEDULE_CHANNEL_ID}>`,
         "",
-        "📌 اضغط الزر بالأسفل للدخول إلى المقابلة الصوتية",
+        "شوف ميعاد المقابلة الصوتية وانتظر دورك.",
+        "بعد المقابلة، الإدارة هتحدد القبول النهائي.",
+        "",
+        "نتمنى لك التوفيق ❤️",
         "",
         line()
       ].join("\n")
     )
-    .setImage(CONFIG.ACCEPT_IMAGE)
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • الإدارة` });
+    .setFooter({ text: `${CONFIG.SERVER_NAME} • قبول مبدئي` });
+
+  return addImage(embed, CONFIG.ACCEPT_IMAGE);
 }
 
-function interviewButtonRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("create_interview")
-      .setLabel(CONFIG.INTERVIEW_BUTTON_LABEL)
-      .setStyle(ButtonStyle.Primary)
-  );
-}
-
-function rejectedEmbed(reason) {
-  return new EmbedBuilder()
+function rejectedDmEmbed(reason, staffUser) {
+  const embed = new EmbedBuilder()
     .setColor(CONFIG.ERROR_COLOR)
     .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("تم رفض تقديمك ❌")
+    .setTitle("تم رفض طلبك ❌")
     .setDescription(
       [
         line(),
         "",
-        "للأسف تم رفض تقديمك",
+        "نعتذر، تم رفض تقديمك في الوقت الحالي.",
         "",
-        "**السبب:**",
+        "**سبب الرفض:**",
         `\`\`\`\n${reason}\n\`\`\``,
+        "",
+        `تمت المراجعة بواسطة: ${staffUser}`,
+        "",
+        "يمكنك تحسين إجاباتك ومحاولة التقديم لاحقاً إذا كانت الإدارة تسمح بذلك.",
+        "نتمنى لك التوفيق ❤️",
         "",
         line()
       ].join("\n")
     )
-    .setImage(CONFIG.REJECT_IMAGE)
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • نظام التقديم` });
+    .setFooter({ text: `${CONFIG.SERVER_NAME} • نتيجة التقديم` });
+
+  return addImage(embed, CONFIG.REJECTED_IMAGE);
 }
 
-function welcomeEmbed(member, inviteInfo = "غير معروف") {
-  return new EmbedBuilder()
+function acceptedReviewEmbed(oldEmbed, userId, staffUser) {
+  const embed = EmbedBuilder.from(oldEmbed)
+    .setColor(CONFIG.SUCCESS_COLOR)
+    .setDescription(
+      [
+        `👤 **المتقدم:** <@${userId}>`,
+        `🆔 **ID:** \`${userId}\``,
+        "",
+        "✅ **الحالة:** تم القبول مبدئياً",
+        `👮 **تم القبول بواسطة:** ${staffUser}`,
+        "",
+        `📌 **المرحلة القادمة:** مراجعة موعد المقابلة في <#${CONFIG.INTERVIEW_SCHEDULE_CHANNEL_ID}>`,
+        line()
+      ].join("\n")
+    )
+    .setFooter({ text: "تم القبول مبدئياً" });
+
+  return embed;
+}
+
+function rejectedReviewEmbed(oldEmbed, userId, staffUser, reason) {
+  const embed = EmbedBuilder.from(oldEmbed)
+    .setColor(CONFIG.ERROR_COLOR)
+    .setDescription(
+      [
+        `👤 **المتقدم:** <@${userId}>`,
+        `🆔 **ID:** \`${userId}\``,
+        "",
+        "❌ **الحالة:** تم الرفض",
+        `👮 **تم الرفض بواسطة:** ${staffUser}`,
+        "",
+        "**سبب الرفض:**",
+        `\`\`\`\n${reason}\n\`\`\``,
+        line()
+      ].join("\n")
+    )
+    .setFooter({ text: "تم الرفض" });
+
+  return embed;
+}
+
+function welcomeEmbed(member) {
+  const embed = new EmbedBuilder()
     .setColor(CONFIG.MAIN_COLOR)
     .setTitle(`مرحباً بك في ${CONFIG.SERVER_NAME}! 🎉`)
     .setDescription(
       [
         `انضم ${member} إلى السيرفر`,
         "",
-        `نتمنى لك وقتاً ممتعاً في ${CONFIG.SERVER_NAME} ✨`,
-        "",
-        "سيرفر FiveM متقدم ومميز 🎮",
+        `نتمنى لك وقتاً ممتعاً في **${CONFIG.SERVER_NAME}** ✨`,
         "",
         "يرجى قراءة القوانين جيداً قبل البدء 📜",
-        "",
         "لا تتردد في التواصل مع الإدارة عند الحاجة 💬",
         "",
-        `أنت العضو رقم 🎯`,
-        `#${member.guild.memberCount}`,
+        `أنت العضو رقم: **#${member.guild.memberCount}**`,
+        `عدد الأعضاء: **${member.guild.memberCount} عضو**`,
         "",
-        "عدد الأعضاء 👥",
-        `${member.guild.memberCount} عضو`,
-        "",
-        "العضو 👤",
-        `${member}`,
-        "",
-        "نوع السيرفر 🎮",
-        "FiveM Server",
-        "",
-        "عمر الحساب 🗓️",
-        `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
-        "",
-        "تاريخ الانضمام 📅",
-        `<t:${Math.floor(Date.now() / 1000)}:R>`,
-        "",
-        "الدعوة بواسطة 🎟️",
-        inviteInfo
+        `عمر الحساب: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
+        `تاريخ الانضمام: <t:${Math.floor(Date.now() / 1000)}:R>`
       ].join("\n")
     )
     .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-    .setImage(CONFIG.WELCOME_IMAGE)
     .setFooter({ text: `${CONFIG.SERVER_NAME} • Member #${member.guild.memberCount}` });
+
+  return addImage(embed, CONFIG.WELCOME_IMAGE);
 }
 
 async function sendApplyPanel() {
-  if (applicationPanelSent) return;
-
   const guild = await client.guilds.fetch(CONFIG.GUILD_ID).catch(() => null);
   if (!guild) return;
 
   const channel = await guild.channels.fetch(CONFIG.APPLY_CHANNEL_ID).catch(() => null);
   if (!channel) return;
 
-  const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
-  if (messages) {
-    const oldPanel = messages.find(
-      m =>
-        m.author.id === client.user.id &&
-        m.embeds[0]?.title?.includes("التقديم على العصابة")
-    );
+  const messages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+  const oldPanel = messages?.find(
+    m => m.author.id === client.user.id && m.embeds[0]?.title?.includes("التقديم على العصابة")
+  );
 
-    if (oldPanel) {
-      applicationPanelSent = true;
-      return;
-    }
-  }
+  if (oldPanel) return;
 
   await channel.send({
     embeds: [applyPanelEmbed()],
     components: [applyButtonRow()]
   });
+}
 
-  applicationPanelSent = true;
+async function sendControlPanel() {
+  const guild = await client.guilds.fetch(CONFIG.GUILD_ID).catch(() => null);
+  if (!guild) return;
+
+  const channel = await guild.channels.fetch(CONFIG.CONTROL_PANEL_CHANNEL_ID).catch(() => null);
+  if (!channel) return;
+
+  const messages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+  const oldPanel = messages?.find(
+    m => m.author.id === client.user.id && m.embeds[0]?.title?.includes("لوحة تحكم البوت")
+  );
+
+  if (oldPanel) return;
+
+  await channel.send({
+    embeds: [controlPanelEmbed()],
+    components: [controlButtons()]
+  });
 }
 
 async function askQuestion(user) {
@@ -369,64 +456,10 @@ async function askQuestion(user) {
   });
 }
 
-async function createInterviewChannel(interaction) {
-  const guild = interaction.guild;
-  const member = interaction.member;
-
-  const existing = guild.channels.cache.find(
-    ch => ch.name === `interview-${member.user.username.toLowerCase()}`
-  );
-
-  if (existing) {
-    return interaction.reply({
-      content: `عندك روم مقابلة موجود بالفعل: ${existing}`,
-      ephemeral: true
-    });
-  }
-
-  const channel = await guild.channels.create({
-    name: `interview-${member.user.username}`,
-    type: ChannelType.GuildVoice,
-    parent: CONFIG.INTERVIEW_CATEGORY_ID || null,
-    permissionOverwrites: [
-      {
-        id: guild.id,
-        deny: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.Connect
-        ]
-      },
-      {
-        id: member.id,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.Connect,
-          PermissionsBitField.Flags.Speak
-        ]
-      },
-      ...CONFIG.REVIEWER_ROLE_IDS.map(roleId => ({
-        id: roleId,
-        allow: [
-          PermissionsBitField.Flags.ViewChannel,
-          PermissionsBitField.Flags.Connect,
-          PermissionsBitField.Flags.Speak,
-          PermissionsBitField.Flags.MoveMembers
-        ]
-      }))
-    ]
-  });
-
-  await sendLog(guild, `🎤 تم إنشاء روم مقابلة للعضو ${member}: ${channel}`);
-
-  return interaction.reply({
-    content: `تم إنشاء روم المقابلة: ${channel}`,
-    ephemeral: true
-  });
-}
-
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
   await sendApplyPanel();
+  await sendControlPanel();
 });
 
 client.on("guildMemberAdd", async member => {
@@ -484,16 +517,10 @@ client.on("messageCreate", async message => {
     const reviewChannel = await guild.channels.fetch(CONFIG.REVIEW_CHANNEL_ID).catch(() => null);
     if (!reviewChannel) return message.reply("روم المراجعة غير موجود.");
 
-    const sent = await reviewChannel.send({
+    await reviewChannel.send({
       content: `${staffMentions()} تقديم جديد من ${message.author}`,
       embeds: [reviewEmbed(message.author, data.answers)],
       components: [reviewButtons(userId)]
-    });
-
-    pendingApplications.set(userId, {
-      answers: data.answers,
-      guildId: data.guildId,
-      messageId: sent.id
     });
 
     await message.reply({
@@ -501,11 +528,9 @@ client.on("messageCreate", async message => {
     });
 
     await sendLog(guild, `📨 تم إرسال تقديم جديد من ${message.author}`);
-
-    return;
   }
 
-  if (message.content.startsWith("!news ")) {
+  if (message.guild && message.content.startsWith("!news ")) {
     if (!isReviewer(message.member)) return;
 
     const text = message.content.replace("!news ", "").trim();
@@ -518,9 +543,10 @@ client.on("messageCreate", async message => {
       .setColor(CONFIG.MAIN_COLOR)
       .setTitle("📢 خبر جديد")
       .setDescription(text)
-      .setImage(CONFIG.APPLY_IMAGE)
       .setTimestamp()
       .setFooter({ text: CONFIG.SERVER_NAME });
+
+    addImage(embed, CONFIG.APPLY_IMAGE);
 
     await newsChannel.send({ embeds: [embed] });
 
@@ -535,7 +561,7 @@ client.on("messageCreate", async message => {
     return message.reply("تم إرسال الخبر ✅");
   }
 
-  if (message.content.startsWith("!say ")) {
+  if (message.guild && message.content.startsWith("!say ")) {
     if (!isReviewer(message.member)) return;
 
     const args = message.content.split(" ");
@@ -549,15 +575,14 @@ client.on("messageCreate", async message => {
     const channel = await message.guild.channels.fetch(channelId).catch(() => null);
     if (!channel) return message.reply("الاتشانل غير موجود.");
 
-    await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(CONFIG.MAIN_COLOR)
-          .setDescription(text)
-          .setImage(CONFIG.APPLY_IMAGE)
-          .setFooter({ text: CONFIG.SERVER_NAME })
-      ]
-    });
+    const embed = new EmbedBuilder()
+      .setColor(CONFIG.MAIN_COLOR)
+      .setDescription(text)
+      .setFooter({ text: CONFIG.SERVER_NAME });
+
+    addImage(embed, CONFIG.APPLY_IMAGE);
+
+    await channel.send({ embeds: [embed] });
 
     await sendLog(message.guild, `✉️ تم إرسال رسالة في ${channel} بواسطة ${message.author}`);
     return message.reply("تم إرسال الرسالة ✅");
@@ -575,13 +600,6 @@ client.on("interactionCreate", async interaction => {
       });
     }
 
-    if (pendingApplications.has(userId)) {
-      return interaction.reply({
-        content: "تقديمك موجود عند المراجعة بالفعل.",
-        ephemeral: true
-      });
-    }
-
     try {
       activeApplications.set(userId, {
         step: 0,
@@ -589,27 +607,29 @@ client.on("interactionCreate", async interaction => {
         guildId: interaction.guild.id
       });
 
-      await interaction.user.send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(CONFIG.MAIN_COLOR)
-            .setAuthor({ name: CONFIG.SYSTEM_NAME })
-            .setTitle("بدأ تقديم العصابة 📩")
-            .setDescription(
-              [
-                line(),
-                "",
-                "جاوب على الأسئلة واحدة واحدة.",
-                "لو عايز تلغي التقديم اكتب:",
-                "`cancel`",
-                "",
-                line()
-              ].join("\n")
-            )
-            .setImage(CONFIG.APPLY_IMAGE)
-        ]
-      });
+      const startEmbed = new EmbedBuilder()
+        .setColor(CONFIG.MAIN_COLOR)
+        .setAuthor({ name: CONFIG.SYSTEM_NAME })
+        .setTitle("بدأ تقديم العصابة 📩")
+        .setDescription(
+          [
+            line(),
+            "",
+            "تم فتح التقديم لك الآن.",
+            "جاوب على الأسئلة واحدة واحدة.",
+            "",
+            "لو عايز تلغي التقديم اكتب:",
+            "`cancel`",
+            "",
+            "بالتوفيق ❤️",
+            "",
+            line()
+          ].join("\n")
+        );
 
+      addImage(startEmbed, CONFIG.APPLY_IMAGE);
+
+      await interaction.user.send({ embeds: [startEmbed] });
       await askQuestion(interaction.user);
 
       return interaction.reply({
@@ -626,8 +646,80 @@ client.on("interactionCreate", async interaction => {
     }
   }
 
-  if (interaction.isButton() && interaction.customId === "create_interview") {
-    return createInterviewChannel(interaction);
+  if (interaction.isButton() && interaction.customId === "open_news_modal") {
+    if (!isReviewer(interaction.member)) {
+      return interaction.reply({
+        content: "مش معاك صلاحية استخدام اللوحة.",
+        ephemeral: true
+      });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId("news_modal")
+      .setTitle("إرسال خبر");
+
+    const titleInput = new TextInputBuilder()
+      .setCustomId("title")
+      .setLabel("عنوان الخبر")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(100);
+
+    const textInput = new TextInputBuilder()
+      .setCustomId("text")
+      .setLabel("محتوى الخبر")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(1500);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(titleInput),
+      new ActionRowBuilder().addComponents(textInput)
+    );
+
+    return interaction.showModal(modal);
+  }
+
+  if (interaction.isButton() && interaction.customId === "open_send_modal") {
+    if (!isReviewer(interaction.member)) {
+      return interaction.reply({
+        content: "مش معاك صلاحية استخدام اللوحة.",
+        ephemeral: true
+      });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId("send_message_modal")
+      .setTitle("إرسال رسالة لروم معين");
+
+    const channelInput = new TextInputBuilder()
+      .setCustomId("channel_id")
+      .setLabel("ايدي الروم")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true)
+      .setMaxLength(30);
+
+    const titleInput = new TextInputBuilder()
+      .setCustomId("title")
+      .setLabel("عنوان الرسالة")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(false)
+      .setMaxLength(100);
+
+    const textInput = new TextInputBuilder()
+      .setCustomId("text")
+      .setLabel("محتوى الرسالة")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(1500);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(channelInput),
+      new ActionRowBuilder().addComponents(titleInput),
+      new ActionRowBuilder().addComponents(textInput)
+    );
+
+    return interaction.showModal(modal);
   }
 
   if (
@@ -646,13 +738,6 @@ client.on("interactionCreate", async interaction => {
 
     const [action, userId] = interaction.customId.split("_");
 
-    if (!pendingApplications.has(userId)) {
-      return interaction.reply({
-        content: "التقديم ده اتراجع قبل كده أو مش موجود.",
-        ephemeral: true
-      });
-    }
-
     if (action === "accept") {
       const member = await interaction.guild.members.fetch(userId).catch(() => null);
 
@@ -664,21 +749,16 @@ client.on("interactionCreate", async interaction => {
 
       if (user) {
         await user.send({
-          embeds: [acceptedEmbed()],
-          components: [interviewButtonRow()]
+          embeds: [acceptedDmEmbed()]
         }).catch(() => null);
       }
-
-      pendingApplications.delete(userId);
 
       await sendLog(interaction.guild, `✅ تم قبول <@${userId}> بواسطة ${interaction.user}`);
 
       return interaction.update({
         content: `✅ تم قبول <@${userId}> بواسطة ${interaction.user}`,
         embeds: [
-          EmbedBuilder.from(interaction.message.embeds[0])
-            .setColor(CONFIG.SUCCESS_COLOR)
-            .setFooter({ text: "تم القبول" })
+          acceptedReviewEmbed(interaction.message.embeds[0], userId, interaction.user)
         ],
         components: []
       });
@@ -686,7 +766,7 @@ client.on("interactionCreate", async interaction => {
 
     if (action === "reject") {
       const modal = new ModalBuilder()
-        .setCustomId(`reject_reason_${userId}`)
+        .setCustomId(`reject_reason_${userId}_${interaction.message.id}`)
         .setTitle("سبب رفض التقديم");
 
       const reasonInput = new TextInputBuilder()
@@ -704,6 +784,105 @@ client.on("interactionCreate", async interaction => {
     }
   }
 
+  if (interaction.isModalSubmit() && interaction.customId === "news_modal") {
+    if (!isReviewer(interaction.member)) {
+      return interaction.reply({
+        content: "مش معاك صلاحية إرسال الأخبار.",
+        ephemeral: true
+      });
+    }
+
+    const title = interaction.fields.getTextInputValue("title");
+    const text = interaction.fields.getTextInputValue("text");
+
+    const newsChannel = await interaction.guild.channels.fetch(CONFIG.NEWS_CHANNEL_ID).catch(() => null);
+    if (!newsChannel) {
+      return interaction.reply({
+        content: "روم الأخبار غير موجود.",
+        ephemeral: true
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(CONFIG.MAIN_COLOR)
+      .setTitle(`📢 ${title}`)
+      .setDescription(
+        [
+          line(),
+          "",
+          text,
+          "",
+          line()
+        ].join("\n")
+      )
+      .setTimestamp()
+      .setFooter({ text: `${CONFIG.SERVER_NAME} • News` });
+
+    addImage(embed, CONFIG.APPLY_IMAGE);
+
+    await newsChannel.send({ embeds: [embed] });
+
+    const role = await interaction.guild.roles.fetch(CONFIG.BROADCAST_ROLE_ID).catch(() => null);
+    if (role) {
+      role.members.forEach(member => {
+        member.send({ embeds: [embed] }).catch(() => null);
+      });
+    }
+
+    await sendLog(interaction.guild, `📢 تم إرسال خبر بواسطة ${interaction.user}`);
+
+    return interaction.reply({
+      content: `تم إرسال الخبر في ${newsChannel} ✅`,
+      ephemeral: true
+    });
+  }
+
+  if (interaction.isModalSubmit() && interaction.customId === "send_message_modal") {
+    if (!isReviewer(interaction.member)) {
+      return interaction.reply({
+        content: "مش معاك صلاحية إرسال الرسائل.",
+        ephemeral: true
+      });
+    }
+
+    const channelId = interaction.fields.getTextInputValue("channel_id").trim();
+    const title = interaction.fields.getTextInputValue("title") || "رسالة من الإدارة";
+    const text = interaction.fields.getTextInputValue("text");
+
+    const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+    if (!channel) {
+      return interaction.reply({
+        content: "الايدي غلط أو البوت مش شايف الروم.",
+        ephemeral: true
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(CONFIG.MAIN_COLOR)
+      .setTitle(title)
+      .setDescription(
+        [
+          line(),
+          "",
+          text,
+          "",
+          line()
+        ].join("\n")
+      )
+      .setFooter({ text: `${CONFIG.SERVER_NAME} • الإدارة` });
+
+    addImage(embed, CONFIG.APPLY_IMAGE);
+
+    await channel.send({ embeds: [embed] });
+
+    await sendLog(interaction.guild, `✉️ تم إرسال رسالة في ${channel} بواسطة ${interaction.user}`);
+
+    return interaction.reply({
+      content: `تم إرسال الرسالة في ${channel} ✅`,
+      ephemeral: true
+    });
+  }
+
   if (interaction.isModalSubmit() && interaction.customId.startsWith("reject_reason_")) {
     if (!isReviewer(interaction.member)) {
       return interaction.reply({
@@ -712,36 +891,37 @@ client.on("interactionCreate", async interaction => {
       });
     }
 
-    const userId = interaction.customId.replace("reject_reason_", "");
+    const parts = interaction.customId.split("_");
+    const userId = parts[2];
+    const messageId = parts[3];
     const reason = interaction.fields.getTextInputValue("reason");
-
-    if (!pendingApplications.has(userId)) {
-      return interaction.reply({
-        content: "التقديم ده اتراجع قبل كده أو مش موجود.",
-        ephemeral: true
-      });
-    }
 
     const user = await client.users.fetch(userId).catch(() => null);
 
     if (user) {
       await user.send({
-        embeds: [rejectedEmbed(reason)]
+        embeds: [rejectedDmEmbed(reason, interaction.user)]
       }).catch(() => null);
     }
 
-    pendingApplications.delete(userId);
+    const reviewChannel = await interaction.guild.channels.fetch(CONFIG.REVIEW_CHANNEL_ID).catch(() => null);
+    const reviewMessage = await reviewChannel?.messages.fetch(messageId).catch(() => null);
+
+    if (reviewMessage) {
+      await reviewMessage.edit({
+        content: `❌ تم رفض <@${userId}> بواسطة ${interaction.user}\n**السبب:** ${reason}`,
+        embeds: [
+          rejectedReviewEmbed(reviewMessage.embeds[0], userId, interaction.user, reason)
+        ],
+        components: []
+      });
+    }
 
     await sendLog(interaction.guild, `❌ تم رفض <@${userId}> بواسطة ${interaction.user}\nالسبب: ${reason}`);
 
-    return interaction.update({
-      content: `❌ تم رفض <@${userId}> بواسطة ${interaction.user}\n**السبب:** ${reason}`,
-      embeds: [
-        EmbedBuilder.from(interaction.message.embeds[0])
-          .setColor(CONFIG.ERROR_COLOR)
-          .setFooter({ text: "تم الرفض" })
-      ],
-      components: []
+    return interaction.reply({
+      content: "تم رفض التقديم وإرسال السبب للعضو ✅",
+      ephemeral: true
     });
   }
 });

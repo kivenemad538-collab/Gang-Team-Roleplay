@@ -47,8 +47,8 @@ const CONFIG = {
 
   BROADCAST_ROLE_ID: "PUT_ROLE_THAT_RECEIVES_NEWS_DM_HERE",
 
-  SERVER_NAME: "Nova CFW RP",
-  SYSTEM_NAME: "Nova CFW Application System",
+  SERVER_NAME: "Dark Gang",
+  SYSTEM_NAME: "Dark Gang Application System",
 
   MAIN_COLOR: 0xff0000,
   SUCCESS_COLOR: 0x00ff7f,

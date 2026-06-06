@@ -580,7 +580,6 @@ client.on("messageCreate", async message => {
       .setDescription(text)
       .setFooter({ text: CONFIG.SERVER_NAME });
 
-    addImage(embed, CONFIG.APPLY_IMAGE);
 
     await channel.send({ embeds: [embed] });
 

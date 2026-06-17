@@ -60,7 +60,7 @@ const SUPPORT_VOICE_IDS = [
 ];
 
 // ملف صوت الترحيب، حط ملف اسمه welcome.mp3 جنب index.js
-const WELCOME_AUDIO_FILE = "./welcome.mp3";
+const WELCOME_AUDIO_FILE = "./ScreenRecording_06-17-2026 06-40-39_1.mp4";
 
 // لو true البوت يبعت البانل كل مرة يشتغل، الأفضل تخليها false وتستخدم الأمر !panel
 const AUTO_SEND_PANEL = false;
@@ -297,6 +297,14 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 
 async function handleJoinWaiting(member) {
   const guild = member.guild;
+  const connection = joinVoiceChannel({
+    channelId: WAITING_VOICE_ID,
+    guildId: guild.id,
+    adapterCreator: guild.voiceAdapterCreator,
+    selfDeaf: false
+});
+
+playWelcomeAudio(connection);
 
   await joinWaitingVoice(guild);
 

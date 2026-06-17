@@ -1,6 +1,3 @@
-require("dotenv").config();
-const express = require("express");
-
 const {
   Client,
   GatewayIntentBits,
@@ -12,917 +9,452 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  PermissionsBitField
+  PermissionsBitField,
+  AuditLogEvent,
+  ChannelType
 } = require("discord.js");
 
-const app = express();
-app.get("/", (req, res) => res.send("Dark Gang Application Bot Online"));
-app.listen(process.env.PORT || 3000);
+const {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus
+} = require("@discordjs/voice");
 
-/* =========================
-   عدل كل الأيديهات من هنا
-========================= */
+// ================= CONFIG =================
 
-const CONFIG = {
-  GUILD_ID: "1511828899535781918",
+const TOKEN = process.env.TOKEN;
 
-  APPLY_CHANNEL_ID: "1511832476195094599",
-  REVIEW_CHANNEL_ID: "1511906559167565924",
-  WELCOME_CHANNEL_ID: "1511832465818517714",
-  NEWS_CHANNEL_ID: "1511907230944071800",
-  LOG_CHANNEL_ID: "1511907497127186482",
+// ايدي السيرفر
+const GUILD_ID = "PUT_GUILD_ID_HERE";
 
-  CONTROL_PANEL_CHANNEL_ID: "1511907230944071800",
-  INTERVIEW_SCHEDULE_CHANNEL_ID: "1511832476195094599",
+// اتشانل البانل اللي فيه زرار إرسال المشكلة
+const PROBLEM_PANEL_CHANNEL_ID = "PUT_PROBLEM_PANEL_CHANNEL_ID_HERE";
 
-  AUTO_ROLE_ID: "1511913983131516938",
-  ACCEPTED_GANG_ROLE_ID: "1511914045555343370",
+// الاتشانل اللي المشاكل تتبعت فيه للإدارة
+const PROBLEM_LOG_CHANNEL_ID = "PUT_PROBLEM_LOG_CHANNEL_ID_HERE";
 
-  STAFF_ROLE_IDS: [
-    "1511832439985541322",
-    "1511832441856200794",
-    "1511832439985541322"
-  ],
+// اتشانل لوق الدعم الفني والمنشن
+const SUPPORT_LOG_CHANNEL_ID = "PUT_SUPPORT_LOG_CHANNEL_ID_HERE";
 
-  REVIEWER_ROLE_IDS: [
-    "1511832439985541322",
-    "1511832441856200794",
-    "1511832443399835894"
-  ],
+// اتشانل التقييمات
+const RATING_LOG_CHANNEL_ID = "PUT_RATING_LOG_CHANNEL_ID_HERE";
 
-  BROADCAST_ROLE_ID: "1511832446474256394",
+// رول الدعم الفني
+const SUPPORT_ROLE_ID = "PUT_SUPPORT_ROLE_ID_HERE";
 
-  SERVER_NAME: "Dark Gang",
-  SYSTEM_NAME: "Dark Gang Application System",
+// فويس انتظار الدعم الفني
+const WAITING_VOICE_ID = "PUT_WAITING_VOICE_ID_HERE";
 
-  MAIN_COLOR: 0xff0000,
-  SUCCESS_COLOR: 0x00ff7f,
-  ERROR_COLOR: 0xff0000,
-
-  APPLY_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&",
-  RECEIVED_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&",
-  ACCEPT_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511911006626906252/518F623E-374B-4FCE-8AD3-D3C03B658DA0.png?ex=6a222c59&is=6a20dad9&hm=fb4872a5eb9a60e02a3af010c6430f0f273cf378c3b6cf460e1a827fe673774b&",
-  REJECTED_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511911671105323048/6D903B7F-2DEC-4539-BE57-34053E9E205F.png?ex=6a222cf8&is=6a20db78&hm=2b31f3f466a986ad5a6b6e2b92d774f70459ecb8a6a909c034432003b44681a1&",
-  WELCOME_IMAGE: "https://cdn.discordapp.com/attachments/1511907088891248640/1511909759526244492/3ACC9654-C7A5-4890-9B56-71643CD66776.png?ex=6a222b30&is=6a20d9b0&hm=39a8f732141927e14f714570f607b186c8f41eebd54e98e317604b983f546b81&"
-};
-
-const QUESTIONS = [
-  "ما اسمك الحقيقي؟",
-  "كم عمرك؟",
-  "ما اسم شخصيتك داخل الرول بلاي؟",
-  "هل لديك خبرة رول بلاي؟",
-  "ما معنى Fail RP؟",
-  "ما معنى Meta Gaming؟",
-  "ما معنى Power Gaming؟",
-  "ما معنى Random Deathmatch؟",
-  "كيف تتصرف إذا خطفت شخص؟",
-  "كيف تتصرف إذا خسرت سيناريو؟",
-  "كم ساعة تلعب يومياً؟",
-  `لماذا تريد الانضمام إلى ${CONFIG.SERVER_NAME}؟`
+// 9 فويسات الدعم الفني
+const SUPPORT_VOICE_IDS = [
+  "PUT_SUPPORT_VOICE_1_ID_HERE",
+  "PUT_SUPPORT_VOICE_2_ID_HERE",
+  "PUT_SUPPORT_VOICE_3_ID_HERE",
+  "PUT_SUPPORT_VOICE_4_ID_HERE",
+  "PUT_SUPPORT_VOICE_5_ID_HERE",
+  "PUT_SUPPORT_VOICE_6_ID_HERE",
+  "PUT_SUPPORT_VOICE_7_ID_HERE",
+  "PUT_SUPPORT_VOICE_8_ID_HERE",
+  "PUT_SUPPORT_VOICE_9_ID_HERE"
 ];
 
-/* ========================= */
+// ملف صوت الترحيب، حط ملف اسمه welcome.mp3 جنب index.js
+const WELCOME_AUDIO_FILE = "./welcome.mp3";
+
+// لو true البوت يبعت البانل كل مرة يشتغل، الأفضل تخليها false وتستخدم الأمر !panel
+const AUTO_SEND_PANEL = false;
+
+// ================= CLIENT =================
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.DirectMessages
   ],
   partials: [Partials.Channel]
 });
 
-const activeApplications = new Map();
+// userId => { supporterId, supportVoiceId, startedAt }
+const activeSupportSessions = new Map();
 
-function line() {
-  return "━━━━━━━━━━━━━━━━━━━━";
-}
+// userId => { supporterId, ratingSent }
+const waitingRatings = new Map();
 
-function addImage(embed, url) {
-  if (url && url.startsWith("http")) embed.setImage(url);
-  return embed;
-}
-
-function staffMentions() {
-  return CONFIG.STAFF_ROLE_IDS.map(id => `<@&${id}>`).join(" ");
-}
-
-function isReviewer(member) {
-  if (!member) return false;
-  if (member.permissions.has(PermissionsBitField.Flags.Administrator)) return true;
-  return CONFIG.REVIEWER_ROLE_IDS.some(id => member.roles.cache.has(id));
-}
-
-async function sendLog(guild, text) {
-  const ch = await guild.channels.fetch(CONFIG.LOG_CHANNEL_ID).catch(() => null);
-  if (!ch) return;
-
-  ch.send({
-    embeds: [
-      new EmbedBuilder()
-        .setColor(CONFIG.MAIN_COLOR)
-        .setTitle("📌 سجل النظام")
-        .setDescription(text)
-        .setTimestamp()
-    ]
-  }).catch(() => null);
-}
-
-function applyPanelEmbed() {
-  const embed = new EmbedBuilder()
-    .setColor(CONFIG.MAIN_COLOR)
-    .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("التقديم على العصابة 📩")
-    .setDescription(
-      [
-        line(),
-        "",
-        `أهلاً بك في نظام التقديم الرسمي لعصابة **${CONFIG.SERVER_NAME}**`,
-        "",
-        "سيتم سؤالك عدة أسئلة مهمة.",
-        "جاوب بهدوء وبشكل محترم وجدي.",
-        "",
-        "لو حبيت تلغي التقديم في أي وقت اكتب:",
-        "`cancel`",
-        "",
-        "نتمنى لك التوفيق ❤️",
-        "",
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • نظام التقديم` });
-
-  return addImage(embed, CONFIG.APPLY_IMAGE);
-}
-
-function applyButtonRow() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("start_gang_apply")
-      .setLabel("تقديم العصابة 📩")
-      .setStyle(ButtonStyle.Danger)
-  );
-}
-
-function controlPanelEmbed() {
-  return new EmbedBuilder()
-    .setColor(CONFIG.MAIN_COLOR)
-    .setTitle("لوحة تحكم البوت ⚙️")
-    .setDescription(
-      [
-        line(),
-        "",
-        "من هنا الإدارة تقدر تستخدم البوت بسهولة.",
-        "",
-        "📢 إرسال خبر في روم الأخبار",
-        "يرسل الخبر للروم المحدد في الكود.",
-        "",
-        "✉️ إرسال رسالة لروم معين",
-        "تكتب أيدي الروم والرسالة والبوت يرسلها.",
-        "",
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • Control Panel` });
-}
-
-function controlButtons() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("open_news_modal")
-      .setLabel("إرسال خبر 📢")
-      .setStyle(ButtonStyle.Danger),
-
-    new ButtonBuilder()
-      .setCustomId("open_send_modal")
-      .setLabel("إرسال رسالة لروم ✉️")
-      .setStyle(ButtonStyle.Secondary)
-  );
-}
-
-function questionEmbed(step) {
-  return new EmbedBuilder()
-    .setColor(CONFIG.MAIN_COLOR)
-    .setTitle(`السؤال رقم ${step + 1}`)
-    .setDescription(
-      [
-        QUESTIONS[step],
-        "",
-        "**اكتب cancel لإلغاء التقديم**"
-      ].join("\n")
-    );
-}
-
-function receivedEmbed() {
-  const embed = new EmbedBuilder()
-    .setColor(CONFIG.SUCCESS_COLOR)
-    .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("تم استلام طلبك بنجاح ✅")
-    .setDescription(
-      [
-        line(),
-        "",
-        "تم إرسال تقديمك إلى إدارة العصابة.",
-        "طلبك الآن قيد المراجعة.",
-        "",
-        "يرجى الانتظار وعدم تكرار التقديم.",
-        "سيتم إبلاغك بالنتيجة في الخاص.",
-        "",
-        "نتمنى لك التوفيق والانضمام معنا قريباً ❤️",
-        "",
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • قيد المراجعة` });
-
-  return addImage(embed, CONFIG.RECEIVED_IMAGE);
-}
-
-function reviewEmbed(user, answers) {
-  const embed = new EmbedBuilder()
-    .setColor(CONFIG.MAIN_COLOR)
-    .setTitle("📥 تقديم عصابة جديد")
-    .setDescription(
-      [
-        `👤 **المتقدم:** ${user}`,
-        `🆔 **ID:** \`${user.id}\``,
-        "",
-        `📌 **الحالة:** قيد المراجعة`,
-        line()
-      ].join("\n")
-    )
-    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-    .setTimestamp()
-    .setFooter({ text: "قبول أو رفض التقديم من الأزرار بالأسفل" });
-
-  answers.forEach((answer, i) => {
-    embed.addFields({
-      name: `السؤال رقم ${i + 1}`,
-      value: `**${QUESTIONS[i]}**\n\`\`\`\n${String(answer).slice(0, 900)}\n\`\`\``
-    });
-  });
-
-  return embed;
-}
-
-function reviewButtons(userId) {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`accept_${userId}`)
-      .setLabel("قبول")
-      .setEmoji("✅")
-      .setStyle(ButtonStyle.Success),
-
-    new ButtonBuilder()
-      .setCustomId(`reject_${userId}`)
-      .setLabel("رفض بسبب")
-      .setEmoji("❌")
-      .setStyle(ButtonStyle.Danger)
-  );
-}
-
-function acceptedDmEmbed() {
-  const embed = new EmbedBuilder()
-    .setColor(CONFIG.SUCCESS_COLOR)
-    .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("تم قبول طلبك مبدئياً 🎉")
-    .setDescription(
-      [
-        line(),
-        "",
-        "✅ تهانينا!",
-        "",
-        `تم قبولك مبدئياً في **${CONFIG.SERVER_NAME}**.`,
-        "",
-        "لكن لسه فاضل آخر مرحلة عشان يكون القبول رسمي.",
-        "",
-        `ادخل روم مواعيد المقابلة من هنا: <#${CONFIG.INTERVIEW_SCHEDULE_CHANNEL_ID}>`,
-        "",
-        "شوف ميعاد المقابلة الصوتية وانتظر دورك.",
-        "بعد المقابلة، الإدارة هتحدد القبول النهائي.",
-        "",
-        "نتمنى لك التوفيق ❤️",
-        "",
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • قبول مبدئي` });
-
-  return addImage(embed, CONFIG.ACCEPT_IMAGE);
-}
-
-function rejectedDmEmbed(reason, staffUser) {
-  const embed = new EmbedBuilder()
-    .setColor(CONFIG.ERROR_COLOR)
-    .setAuthor({ name: CONFIG.SYSTEM_NAME })
-    .setTitle("تم رفض طلبك ❌")
-    .setDescription(
-      [
-        line(),
-        "",
-        "نعتذر، تم رفض تقديمك في الوقت الحالي.",
-        "",
-        "**سبب الرفض:**",
-        `\`\`\`\n${reason}\n\`\`\``,
-        "",
-        `تمت المراجعة بواسطة: ${staffUser}`,
-        "",
-        "يمكنك تحسين إجاباتك ومحاولة التقديم لاحقاً إذا كانت الإدارة تسمح بذلك.",
-        "نتمنى لك التوفيق ❤️",
-        "",
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • نتيجة التقديم` });
-
-  return addImage(embed, CONFIG.REJECTED_IMAGE);
-}
-
-function acceptedReviewEmbed(oldEmbed, userId, staffUser) {
-  const embed = EmbedBuilder.from(oldEmbed)
-    .setColor(CONFIG.SUCCESS_COLOR)
-    .setDescription(
-      [
-        `👤 **المتقدم:** <@${userId}>`,
-        `🆔 **ID:** \`${userId}\``,
-        "",
-        "✅ **الحالة:** تم القبول مبدئياً",
-        `👮 **تم القبول بواسطة:** ${staffUser}`,
-        "",
-        `📌 **المرحلة القادمة:** مراجعة موعد المقابلة في <#${CONFIG.INTERVIEW_SCHEDULE_CHANNEL_ID}>`,
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: "تم القبول مبدئياً" });
-
-  return embed;
-}
-
-function rejectedReviewEmbed(oldEmbed, userId, staffUser, reason) {
-  const embed = EmbedBuilder.from(oldEmbed)
-    .setColor(CONFIG.ERROR_COLOR)
-    .setDescription(
-      [
-        `👤 **المتقدم:** <@${userId}>`,
-        `🆔 **ID:** \`${userId}\``,
-        "",
-        "❌ **الحالة:** تم الرفض",
-        `👮 **تم الرفض بواسطة:** ${staffUser}`,
-        "",
-        "**سبب الرفض:**",
-        `\`\`\`\n${reason}\n\`\`\``,
-        line()
-      ].join("\n")
-    )
-    .setFooter({ text: "تم الرفض" });
-
-  return embed;
-}
-
-function welcomeEmbed(member) {
-  const embed = new EmbedBuilder()
-    .setColor(CONFIG.MAIN_COLOR)
-    .setTitle(`مرحباً بك في ${CONFIG.SERVER_NAME}! 🎉`)
-    .setDescription(
-      [
-        `انضم ${member} إلى السيرفر`,
-        "",
-        `نتمنى لك وقتاً ممتعاً في **${CONFIG.SERVER_NAME}** ✨`,
-        "",
-        "يرجى قراءة القوانين جيداً قبل البدء 📜",
-        "لا تتردد في التواصل مع الإدارة عند الحاجة 💬",
-        "",
-        `أنت العضو رقم: **#${member.guild.memberCount}**`,
-        `عدد الأعضاء: **${member.guild.memberCount} عضو**`,
-        "",
-        `عمر الحساب: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`,
-        `تاريخ الانضمام: <t:${Math.floor(Date.now() / 1000)}:R>`
-      ].join("\n")
-    )
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-    .setFooter({ text: `${CONFIG.SERVER_NAME} • Member #${member.guild.memberCount}` });
-
-  return addImage(embed, CONFIG.WELCOME_IMAGE);
-}
-
-async function sendApplyPanel() {
-  const guild = await client.guilds.fetch(CONFIG.GUILD_ID).catch(() => null);
-  if (!guild) return;
-
-  const channel = await guild.channels.fetch(CONFIG.APPLY_CHANNEL_ID).catch(() => null);
-  if (!channel) return;
-
-  const messages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
-  const oldPanel = messages?.find(
-    m => m.author.id === client.user.id && m.embeds[0]?.title?.includes("التقديم على العصابة")
-  );
-
-  if (oldPanel) return;
-
-  await channel.send({
-    embeds: [applyPanelEmbed()],
-    components: [applyButtonRow()]
-  });
-}
-
-async function sendControlPanel() {
-  const guild = await client.guilds.fetch(CONFIG.GUILD_ID).catch(() => null);
-  if (!guild) return;
-
-  const channel = await guild.channels.fetch(CONFIG.CONTROL_PANEL_CHANNEL_ID).catch(() => null);
-  if (!channel) return;
-
-  const messages = await channel.messages.fetch({ limit: 20 }).catch(() => null);
-  const oldPanel = messages?.find(
-    m => m.author.id === client.user.id && m.embeds[0]?.title?.includes("لوحة تحكم البوت")
-  );
-
-  if (oldPanel) return;
-
-  await channel.send({
-    embeds: [controlPanelEmbed()],
-    components: [controlButtons()]
-  });
-}
-
-async function askQuestion(user) {
-  const data = activeApplications.get(user.id);
-  if (!data) return;
-
-  await user.send({
-    embeds: [questionEmbed(data.step)]
-  });
-}
+// ================= READY =================
 
 client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-  await sendApplyPanel();
-  await sendControlPanel();
-});
+  console.log(`✅ Logged in as ${client.user.tag}`);
 
-client.on("guildMemberAdd", async member => {
-  if (CONFIG.AUTO_ROLE_ID) {
-    await member.roles.add(CONFIG.AUTO_ROLE_ID).catch(() => null);
+  const guild = await client.guilds.fetch(GUILD_ID).catch(() => null);
+  if (!guild) return console.log("❌ Guild not found. Check GUILD_ID");
+
+  await joinWaitingVoice(guild);
+
+  if (AUTO_SEND_PANEL) {
+    const channel = await guild.channels.fetch(PROBLEM_PANEL_CHANNEL_ID).catch(() => null);
+    if (channel) await sendProblemPanel(channel);
   }
-
-  const channel = await member.guild.channels.fetch(CONFIG.WELCOME_CHANNEL_ID).catch(() => null);
-
-  if (channel) {
-    await channel.send({
-      content: `${member}`,
-      embeds: [welcomeEmbed(member)]
-    }).catch(() => null);
-  }
-
-  await sendLog(member.guild, `📥 دخل عضو جديد: ${member}`);
 });
 
-client.on("guildMemberRemove", async member => {
-  await sendLog(member.guild, `📤 خرج عضو: ${member.user.tag}`);
-});
+// ================= PANEL COMMAND =================
 
-client.on("messageCreate", async message => {
+client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
+  if (message.content !== "!panel") return;
 
-  if (!message.guild) {
-    const userId = message.author.id;
-
-    if (message.content.toLowerCase().trim() === "cancel") {
-      if (activeApplications.has(userId)) {
-        activeApplications.delete(userId);
-        return message.reply("تم إلغاء التقديم بنجاح ❌");
-      }
-
-      return message.reply("لا يوجد تقديم شغال لديك حالياً.");
-    }
-
-    const data = activeApplications.get(userId);
-    if (!data) return;
-
-    data.answers.push(message.content.trim());
-    data.step++;
-
-    if (data.step < QUESTIONS.length) {
-      activeApplications.set(userId, data);
-      return askQuestion(message.author);
-    }
-
-    activeApplications.delete(userId);
-
-    const guild = await client.guilds.fetch(data.guildId).catch(() => null);
-    if (!guild) return message.reply("حدث خطأ في إرسال التقديم.");
-
-    const reviewChannel = await guild.channels.fetch(CONFIG.REVIEW_CHANNEL_ID).catch(() => null);
-    if (!reviewChannel) return message.reply("روم المراجعة غير موجود.");
-
-    await reviewChannel.send({
-      content: `${staffMentions()} تقديم جديد من ${message.author}`,
-      embeds: [reviewEmbed(message.author, data.answers)],
-      components: [reviewButtons(userId)]
-    });
-
-    await message.reply({
-      embeds: [receivedEmbed()]
-    });
-
-    await sendLog(guild, `📨 تم إرسال تقديم جديد من ${message.author}`);
+  if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+    return message.reply("❌ الأمر ده للإدارة فقط.");
   }
 
-  if (message.guild && message.content.startsWith("!news ")) {
-    if (!isReviewer(message.member)) return;
+  const channel = await message.guild.channels.fetch(PROBLEM_PANEL_CHANNEL_ID).catch(() => null);
+  if (!channel) return message.reply("❌ اتشانل البانل مش صح.");
 
-    const text = message.content.replace("!news ", "").trim();
-    if (!text) return message.reply("اكتب الخبر بعد الأمر.");
-
-    const newsChannel = await message.guild.channels.fetch(CONFIG.NEWS_CHANNEL_ID).catch(() => null);
-    if (!newsChannel) return message.reply("روم الأخبار غير موجود.");
-
-    const embed = new EmbedBuilder()
-      .setColor(CONFIG.MAIN_COLOR)
-      .setTitle("📢 خبر جديد")
-      .setDescription(text)
-      .setTimestamp()
-      .setFooter({ text: CONFIG.SERVER_NAME });
-
-    addImage(embed, CONFIG.APPLY_IMAGE);
-
-    await newsChannel.send({ embeds: [embed] });
-
-    const role = await message.guild.roles.fetch(CONFIG.BROADCAST_ROLE_ID).catch(() => null);
-    if (role) {
-      role.members.forEach(member => {
-        member.send({ embeds: [embed] }).catch(() => null);
-      });
-    }
-
-    await sendLog(message.guild, `📢 تم إرسال خبر بواسطة ${message.author}`);
-    return message.reply("تم إرسال الخبر ✅");
-  }
-
-  if (message.guild && message.content.startsWith("!say ")) {
-    if (!isReviewer(message.member)) return;
-
-    const args = message.content.split(" ");
-    const channelId = args[1];
-    const text = args.slice(2).join(" ");
-
-    if (!channelId || !text) {
-      return message.reply("الاستخدام: `!say CHANNEL_ID الرسالة`");
-    }
-
-    const channel = await message.guild.channels.fetch(channelId).catch(() => null);
-    if (!channel) return message.reply("الاتشانل غير موجود.");
-
-    const embed = new EmbedBuilder()
-      .setColor(CONFIG.MAIN_COLOR)
-      .setDescription(text)
-      .setFooter({ text: CONFIG.SERVER_NAME });
-
-
-    await channel.send({ embeds: [embed] });
-
-    await sendLog(message.guild, `✉️ تم إرسال رسالة في ${channel} بواسطة ${message.author}`);
-    return message.reply("تم إرسال الرسالة ✅");
-  }
+  await sendProblemPanel(channel);
+  await message.reply("✅ تم إرسال بانل المشاكل.");
 });
 
-client.on("interactionCreate", async interaction => {
-  if (interaction.isButton() && interaction.customId === "start_gang_apply") {
-    const userId = interaction.user.id;
+// ================= PROBLEM PANEL =================
 
-    if (activeApplications.has(userId)) {
-      return interaction.reply({
-        content: "عندك تقديم شغال بالفعل. افتح الخاص وكمل أو اكتب `cancel`.",
-        ephemeral: true
-      });
-    }
-
-    try {
-      activeApplications.set(userId, {
-        step: 0,
-        answers: [],
-        guildId: interaction.guild.id
-      });
-
-      const startEmbed = new EmbedBuilder()
-        .setColor(CONFIG.MAIN_COLOR)
-        .setAuthor({ name: CONFIG.SYSTEM_NAME })
-        .setTitle("بدأ تقديم العصابة 📩")
-        .setDescription(
-          [
-            line(),
-            "",
-            "تم فتح التقديم لك الآن.",
-            "جاوب على الأسئلة واحدة واحدة.",
-            "",
-            "لو عايز تلغي التقديم اكتب:",
-            "`cancel`",
-            "",
-            "بالتوفيق ❤️",
-            "",
-            line()
-          ].join("\n")
-        );
-
-      addImage(startEmbed, CONFIG.APPLY_IMAGE);
-
-      await interaction.user.send({ embeds: [startEmbed] });
-      await askQuestion(interaction.user);
-
-      return interaction.reply({
-        content: "تم إرسال أسئلة التقديم في الخاص ✅",
-        ephemeral: true
-      });
-    } catch {
-      activeApplications.delete(userId);
-
-      return interaction.reply({
-        content: "مش قادر أبعتلك خاص. افتح DM من إعدادات السيرفر وجرب تاني.",
-        ephemeral: true
-      });
-    }
-  }
-
-  if (interaction.isButton() && interaction.customId === "open_news_modal") {
-    if (!isReviewer(interaction.member)) {
-      return interaction.reply({
-        content: "مش معاك صلاحية استخدام اللوحة.",
-        ephemeral: true
-      });
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId("news_modal")
-      .setTitle("إرسال خبر");
-
-    const titleInput = new TextInputBuilder()
-      .setCustomId("title")
-      .setLabel("عنوان الخبر")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMaxLength(100);
-
-    const textInput = new TextInputBuilder()
-      .setCustomId("text")
-      .setLabel("محتوى الخبر")
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true)
-      .setMaxLength(1500);
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(titleInput),
-      new ActionRowBuilder().addComponents(textInput)
-    );
-
-    return interaction.showModal(modal);
-  }
-
-  if (interaction.isButton() && interaction.customId === "open_send_modal") {
-    if (!isReviewer(interaction.member)) {
-      return interaction.reply({
-        content: "مش معاك صلاحية استخدام اللوحة.",
-        ephemeral: true
-      });
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId("send_message_modal")
-      .setTitle("إرسال رسالة لروم معين");
-
-    const channelInput = new TextInputBuilder()
-      .setCustomId("channel_id")
-      .setLabel("ايدي الروم")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setMaxLength(30);
-
-    const titleInput = new TextInputBuilder()
-      .setCustomId("title")
-      .setLabel("عنوان الرسالة")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false)
-      .setMaxLength(100);
-
-    const textInput = new TextInputBuilder()
-      .setCustomId("text")
-      .setLabel("محتوى الرسالة")
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true)
-      .setMaxLength(1500);
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(channelInput),
-      new ActionRowBuilder().addComponents(titleInput),
-      new ActionRowBuilder().addComponents(textInput)
-    );
-
-    return interaction.showModal(modal);
-  }
-
-  if (
-    interaction.isButton() &&
-    (
-      interaction.customId.startsWith("accept_") ||
-      interaction.customId.startsWith("reject_")
+async function sendProblemPanel(channel) {
+  const embed = new EmbedBuilder()
+    .setTitle("🎮 دعم سيرفر FiveM")
+    .setDescription(
+      "لو عندك أي مشكلة في السيرفر، اضغط على الزر تحت واكتب مشكلتك.\n\n" +
+      "الإدارة هتشوف المشكلة وترد عليك في أقرب وقت.\n\n" +
+      "لو المشكلة محتاجة مساعدة أكبر، افتح تذكرة دعم فني."
     )
-  ) {
-    if (!isReviewer(interaction.member)) {
-      return interaction.reply({
-        content: "مش معاك صلاحية مراجعة التقديمات.",
-        ephemeral: true
-      });
-    }
+    .setColor(0x2b2d31)
+    .setFooter({ text: "Nova Team Support" });
 
-    const [action, userId] = interaction.customId.split("_");
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("send_problem")
+      .setLabel("إرسال المشكلة")
+      .setEmoji("📩")
+      .setStyle(ButtonStyle.Primary)
+  );
 
-    if (action === "accept") {
-      const member = await interaction.guild.members.fetch(userId).catch(() => null);
+  await channel.send({ embeds: [embed], components: [row] });
+}
 
-      if (member && CONFIG.ACCEPTED_GANG_ROLE_ID) {
-        await member.roles.add(CONFIG.ACCEPTED_GANG_ROLE_ID).catch(() => null);
+// ================= INTERACTIONS =================
+
+client.on("interactionCreate", async (interaction) => {
+  try {
+    if (interaction.isButton()) {
+      if (interaction.customId === "send_problem") {
+        const modal = new ModalBuilder()
+          .setCustomId("problem_modal")
+          .setTitle("إرسال مشكلة");
+
+        const problemInput = new TextInputBuilder()
+          .setCustomId("problem_text")
+          .setLabel("اكتب مشكلتك هنا")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setMaxLength(1000);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(problemInput));
+        return interaction.showModal(modal);
       }
 
-      const user = await client.users.fetch(userId).catch(() => null);
+      if (interaction.customId.startsWith("rate_")) {
+        const rating = interaction.customId.replace("rate_", "");
+        const data = waitingRatings.get(interaction.user.id);
 
-      if (user) {
-        await user.send({
-          embeds: [acceptedDmEmbed()]
-        }).catch(() => null);
+        if (!data) {
+          return interaction.reply({
+            content: "❌ مفيش تقييم مفتوح ليك حالياً.",
+            ephemeral: true
+          });
+        }
+
+        const guild = await client.guilds.fetch(GUILD_ID);
+        const ratingChannel = await guild.channels.fetch(RATING_LOG_CHANNEL_ID).catch(() => null);
+
+        const embed = new EmbedBuilder()
+          .setTitle("⭐ تقييم دعم فني جديد")
+          .setColor(0xf1c40f)
+          .addFields(
+            { name: "👤 الشخص", value: `<@${interaction.user.id}>`, inline: true },
+            { name: "🛠️ الدعم الفني", value: data.supporterId ? `<@${data.supporterId}>` : "غير معروف", inline: true },
+            { name: "⭐ التقييم", value: `${rating}/5`, inline: true }
+          )
+          .setTimestamp();
+
+        if (ratingChannel) await ratingChannel.send({ embeds: [embed] });
+
+        waitingRatings.delete(interaction.user.id);
+
+        return interaction.update({
+          content: `✅ شكراً لتقييمك. تقييمك: ${rating}/5`,
+          components: []
+        });
       }
-
-      await sendLog(interaction.guild, `✅ تم قبول <@${userId}> بواسطة ${interaction.user}`);
-
-      return interaction.update({
-        content: `✅ تم قبول <@${userId}> بواسطة ${interaction.user}`,
-        embeds: [
-          acceptedReviewEmbed(interaction.message.embeds[0], userId, interaction.user)
-        ],
-        components: []
-      });
     }
 
-    if (action === "reject") {
-      const modal = new ModalBuilder()
-        .setCustomId(`reject_reason_${userId}_${interaction.message.id}`)
-        .setTitle("سبب رفض التقديم");
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId === "problem_modal") {
+        const problem = interaction.fields.getTextInputValue("problem_text");
 
-      const reasonInput = new TextInputBuilder()
-        .setCustomId("reason")
-        .setLabel("اكتب سبب الرفض")
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(true)
-        .setMaxLength(800);
+        const guild = await client.guilds.fetch(GUILD_ID);
+        const logChannel = await guild.channels.fetch(PROBLEM_LOG_CHANNEL_ID).catch(() => null);
 
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(reasonInput)
-      );
+        if (!logChannel) {
+          return interaction.reply({
+            content: "❌ اتشانل استقبال المشاكل مش متظبط.",
+            ephemeral: true
+          });
+        }
 
-      return interaction.showModal(modal);
+        const embed = new EmbedBuilder()
+          .setTitle("📩 مشكلة جديدة من لاعب")
+          .setColor(0xe74c3c)
+          .addFields(
+            { name: "👤 اللاعب", value: `${interaction.user} \n\`${interaction.user.id}\`` },
+            { name: "📝 المشكلة", value: problem }
+          )
+          .setTimestamp();
+
+        await logChannel.send({ embeds: [embed] });
+
+        return interaction.reply({
+          content: "✅ تم إرسال مشكلتك للإدارة.",
+          ephemeral: true
+        });
+      }
     }
-  }
-
-  if (interaction.isModalSubmit() && interaction.customId === "news_modal") {
-    if (!isReviewer(interaction.member)) {
-      return interaction.reply({
-        content: "مش معاك صلاحية إرسال الأخبار.",
-        ephemeral: true
-      });
-    }
-
-    const title = interaction.fields.getTextInputValue("title");
-    const text = interaction.fields.getTextInputValue("text");
-
-    const newsChannel = await interaction.guild.channels.fetch(CONFIG.NEWS_CHANNEL_ID).catch(() => null);
-    if (!newsChannel) {
-      return interaction.reply({
-        content: "روم الأخبار غير موجود.",
-        ephemeral: true
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(CONFIG.MAIN_COLOR)
-      .setTitle(`📢 ${title}`)
-      .setDescription(
-        [
-          line(),
-          "",
-          text,
-          "",
-          line()
-        ].join("\n")
-      )
-      .setTimestamp()
-      .setFooter({ text: `${CONFIG.SERVER_NAME} • News` });
-
-    addImage(embed, CONFIG.APPLY_IMAGE);
-
-    await newsChannel.send({ embeds: [embed] });
-
-    const role = await interaction.guild.roles.fetch(CONFIG.BROADCAST_ROLE_ID).catch(() => null);
-    if (role) {
-      role.members.forEach(member => {
-        member.send({ embeds: [embed] }).catch(() => null);
-      });
-    }
-
-    await sendLog(interaction.guild, `📢 تم إرسال خبر بواسطة ${interaction.user}`);
-
-    return interaction.reply({
-      content: `تم إرسال الخبر في ${newsChannel} ✅`,
-      ephemeral: true
-    });
-  }
-
-  if (interaction.isModalSubmit() && interaction.customId === "send_message_modal") {
-    if (!isReviewer(interaction.member)) {
-      return interaction.reply({
-        content: "مش معاك صلاحية إرسال الرسائل.",
-        ephemeral: true
-      });
-    }
-
-    const channelId = interaction.fields.getTextInputValue("channel_id").trim();
-    const title = interaction.fields.getTextInputValue("title") || "رسالة من الإدارة";
-    const text = interaction.fields.getTextInputValue("text");
-
-    const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
-    if (!channel) {
-      return interaction.reply({
-        content: "الايدي غلط أو البوت مش شايف الروم.",
-        ephemeral: true
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(CONFIG.MAIN_COLOR)
-      .setTitle(title)
-      .setDescription(
-        [
-          line(),
-          "",
-          text,
-          "",
-          line()
-        ].join("\n")
-      )
-      .setFooter({ text: `${CONFIG.SERVER_NAME} • الإدارة` });
-
-    addImage(embed, CONFIG.APPLY_IMAGE);
-
-    await channel.send({ embeds: [embed] });
-
-    await sendLog(interaction.guild, `✉️ تم إرسال رسالة في ${channel} بواسطة ${interaction.user}`);
-
-    return interaction.reply({
-      content: `تم إرسال الرسالة في ${channel} ✅`,
-      ephemeral: true
-    });
-  }
-
-  if (interaction.isModalSubmit() && interaction.customId.startsWith("reject_reason_")) {
-    if (!isReviewer(interaction.member)) {
-      return interaction.reply({
-        content: "مش معاك صلاحية مراجعة التقديمات.",
-        ephemeral: true
-      });
-    }
-
-    const parts = interaction.customId.split("_");
-    const userId = parts[2];
-    const messageId = parts[3];
-    const reason = interaction.fields.getTextInputValue("reason");
-
-    const user = await client.users.fetch(userId).catch(() => null);
-
-    if (user) {
-      await user.send({
-        embeds: [rejectedDmEmbed(reason, interaction.user)]
-      }).catch(() => null);
-    }
-
-    const reviewChannel = await interaction.guild.channels.fetch(CONFIG.REVIEW_CHANNEL_ID).catch(() => null);
-    const reviewMessage = await reviewChannel?.messages.fetch(messageId).catch(() => null);
-
-    if (reviewMessage) {
-      await reviewMessage.edit({
-        content: `❌ تم رفض <@${userId}> بواسطة ${interaction.user}\n**السبب:** ${reason}`,
-        embeds: [
-          rejectedReviewEmbed(reviewMessage.embeds[0], userId, interaction.user, reason)
-        ],
-        components: []
-      });
-    }
-
-    await sendLog(interaction.guild, `❌ تم رفض <@${userId}> بواسطة ${interaction.user}\nالسبب: ${reason}`);
-
-    return interaction.reply({
-      content: "تم رفض التقديم وإرسال السبب للعضو ✅",
-      ephemeral: true
-    });
+  } catch (err) {
+    console.log(err);
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// ================= VOICE SUPPORT SYSTEM =================
+
+client.on("voiceStateUpdate", async (oldState, newState) => {
+  const member = newState.member || oldState.member;
+  if (!member || member.user.bot) return;
+
+  const guild = member.guild;
+
+  // لما الشخص يدخل انتظار الدعم
+  if (newState.channelId === WAITING_VOICE_ID && oldState.channelId !== WAITING_VOICE_ID) {
+    await handleJoinWaiting(member);
+  }
+
+  // لما الشخص يتسحب من انتظار الدعم لفويس دعم
+  if (
+    oldState.channelId === WAITING_VOICE_ID &&
+    SUPPORT_VOICE_IDS.includes(newState.channelId)
+  ) {
+    const supporterId = await getMemberMoveExecutor(guild, member.id);
+
+    activeSupportSessions.set(member.id, {
+      supporterId,
+      supportVoiceId: newState.channelId,
+      startedAt: Date.now()
+    });
+
+    const logChannel = await guild.channels.fetch(SUPPORT_LOG_CHANNEL_ID).catch(() => null);
+
+    if (logChannel) {
+      const embed = new EmbedBuilder()
+        .setTitle("✅ تم استلام لاعب في الدعم")
+        .setColor(0x2ecc71)
+        .addFields(
+          { name: "👤 اللاعب", value: `<@${member.id}>`, inline: true },
+          { name: "🛠️ الدعم الفني", value: supporterId ? `<@${supporterId}>` : "غير معروف", inline: true },
+          { name: "🔊 الروم", value: `<#${newState.channelId}>`, inline: true }
+        )
+        .setTimestamp();
+
+      await logChannel.send({ embeds: [embed] });
+    }
+
+    await safeDM(
+      member,
+      "✅ تم تحويلك للدعم الفني.\nبعد ما تخلص، هيجيلك تقييم للخدمة."
+    );
+  }
+
+  // لما الشخص يخرج من فويس الدعم أو يتحرك لفويس عادي
+  if (
+    SUPPORT_VOICE_IDS.includes(oldState.channelId) &&
+    oldState.channelId !== newState.channelId &&
+    activeSupportSessions.has(member.id)
+  ) {
+    const session = activeSupportSessions.get(member.id);
+    activeSupportSessions.delete(member.id);
+
+    await sendRatingDM(member, session.supporterId);
+  }
+});
+
+async function handleJoinWaiting(member) {
+  const guild = member.guild;
+
+  await joinWaitingVoice(guild);
+
+  const supportOnline = await isSupportAvailable(guild);
+
+  const dmEmbed = new EmbedBuilder()
+    .setTitle("🎧 مرحباً بك في الدعم الفني")
+    .setColor(0x3498db)
+    .setDescription(
+      "أنت الآن في انتظار الدعم الفني.\n\n" +
+      "لو المشكلة بسيطة، انتظر وسيتم سحبك قريباً.\n" +
+      "لو المشكلة تحتاج مساعدة أكبر، يفضل فتح تذكرة دعم فني.\n\n" +
+      "شكراً لصبرك ❤️"
+    )
+    .setFooter({ text: "Nova Team Support" });
+
+  await member.send({ embeds: [dmEmbed] }).catch(() => null);
+
+  const logChannel = await guild.channels.fetch(SUPPORT_LOG_CHANNEL_ID).catch(() => null);
+  if (!logChannel) return;
+
+  if (!supportOnline) {
+    const embed = new EmbedBuilder()
+      .setTitle("⚠️ لاعب ينتظر الدعم")
+      .setColor(0xe67e22)
+      .setDescription(
+        `${member} موجود في انتظار الدعم الفني، لكن مفيش حد من الدعم الفني في الرومات.`
+      )
+      .setTimestamp();
+
+    await logChannel.send({
+      content: `<@&${SUPPORT_ROLE_ID}>`,
+      embeds: [embed]
+    });
+  } else {
+    const embed = new EmbedBuilder()
+      .setTitle("🎧 لاعب دخل انتظار الدعم")
+      .setColor(0x3498db)
+      .setDescription(`${member} موجود في انتظار الدعم الفني.`)
+      .setTimestamp();
+
+    await logChannel.send({ embeds: [embed] });
+  }
+}
+
+async function isSupportAvailable(guild) {
+  for (const voiceId of SUPPORT_VOICE_IDS) {
+    const channel = await guild.channels.fetch(voiceId).catch(() => null);
+    if (!channel || channel.type !== ChannelType.GuildVoice) continue;
+
+    const hasSupport = channel.members.some((m) =>
+      m.roles.cache.has(SUPPORT_ROLE_ID)
+    );
+
+    if (hasSupport) return true;
+  }
+
+  return false;
+}
+
+async function sendRatingDM(member, supporterId) {
+  waitingRatings.set(member.id, {
+    supporterId,
+    ratingSent: Date.now()
+  });
+
+  const embed = new EmbedBuilder()
+    .setTitle("⭐ تقييم الدعم الفني")
+    .setColor(0xf1c40f)
+    .setDescription(
+      "شكراً لاستخدامك الدعم الفني.\n\n" +
+      "قيّم الشخص اللي ساعدك من 1 إلى 5."
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("rate_1").setLabel("1").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("rate_2").setLabel("2").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("rate_3").setLabel("3").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("rate_4").setLabel("4").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("rate_5").setLabel("5").setStyle(ButtonStyle.Success)
+  );
+
+  await member.send({ embeds: [embed], components: [row] }).catch(() => null);
+}
+
+async function getMemberMoveExecutor(guild, targetId) {
+  try {
+    const logs = await guild.fetchAuditLogs({
+      type: AuditLogEvent.MemberMove,
+      limit: 5
+    });
+
+    const entry = logs.entries.find((e) => {
+      const isRecent = Date.now() - e.createdTimestamp < 8000;
+      const targetMatch = e.extra && e.extra.channel;
+      return isRecent && targetMatch;
+    });
+
+    return entry?.executor?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// ================= BOT JOINS WAITING VOICE =================
+
+async function joinWaitingVoice(guild) {
+  const channel = await guild.channels.fetch(WAITING_VOICE_ID).catch(() => null);
+  if (!channel || channel.type !== ChannelType.GuildVoice) return;
+
+  try {
+    const connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: guild.id,
+      adapterCreator: guild.voiceAdapterCreator,
+      selfDeaf: false,
+      selfMute: false
+    });
+
+    console.log("✅ Bot joined waiting voice");
+
+    return connection;
+  } catch (err) {
+    console.log("❌ Voice join error:", err);
+  }
+}
+
+// ================= OPTIONAL PLAY WELCOME AUDIO =================
+// ملاحظة: لو عايز البوت يتكلم بصوت، حط ملف welcome.mp3.
+// الكود ده جاهز، بس مش مشغل تلقائي عشان ميكررش الصوت كتير.
+// لو عايز أشغله عند دخول كل شخص، قولّي أعدلهولك.
+
+function playWelcomeAudio(connection) {
+  try {
+    const player = createAudioPlayer();
+    const resource = createAudioResource(WELCOME_AUDIO_FILE);
+
+    connection.subscribe(player);
+    player.play(resource);
+
+    player.on(AudioPlayerStatus.Idle, () => {
+      console.log("✅ Welcome audio finished");
+    });
+  } catch (err) {
+    console.log("❌ Audio error:", err);
+  }
+}
+
+// ================= SAFE DM =================
+
+async function safeDM(member, text) {
+  try {
+    await member.send(text);
+  } catch {
+    // DM closed
+  }
+}
+
+// ================= LOGIN =================
+
+client.login(TOKEN);

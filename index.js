@@ -129,7 +129,7 @@ async function sendProblemPanel(channel) {
       "لو المشكلة محتاجة مساعدة أكبر، افتح تذكرة دعم فني."
     )
     .setColor(0x2b2d31)
-    .setFooter({ text: "Nova Team Support" });
+    .setFooter({ text: "Turbo Team Support" });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
